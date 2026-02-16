@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Аренда Авто • Облачная версия</title>
+    <!-- Google API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            padding: 16px;
+            padding-bottom: 90px;
+        }
+
+        /* Экран загрузки */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s;
+        }
+
+        .splash-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #1e293b;
+            border-top: 5px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Экран авторизации */
+        .auth-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(145deg, #0f172a, #1e293b);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9000;
+        }
+
+        .auth-screen.hidden {
+            display: none;
+        }
+
+        .auth-card {
+            background: #1e293b;
+            border-radius: 48px;
+            padding: 40px 24px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            border: 1px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .auth-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-subtitle {
+            color: #94a3b8;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        .google-btn {
+            background: white;
+            color: #1e293b;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .google-btn img {
+            width: 24px;
+            height: 24px;
+        }
+
+        .create-sheet-btn {
+            background: transparent;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            padding: 14px;
+            border-radius: 40px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* Основной интерфейс */
+        .main-interface {
+            display: none;
+        }
+
+        .main-interface.visible {
+            display: block;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .debt-badge {
+            background: #ef4444;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .sync-status {
+            background: #1e293b;
+            padding: 12px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            border-left: 4px solid #22c55e;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border-radius: 24px;
+            padding: 18px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .calendar-section {
+            background: #1e293b;
+            border-radius: 32px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .month-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .nav-btn {
+            background: #334155;
+            border: none;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 44px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .day-cell {
+            aspect-ratio: 1;
+            border-radius: 20px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            color: white;
+        }
+
+        .status-red { background: #7f1d1d; }
+        .status-yellow { background: #854d0e; }
+        .status-green { background: #14532d; }
+        .status-gray { background: #1e293b; border: 1px solid #334155; }
+        .status-sunday { background: #2d3748; opacity: 0.7; }
+
+        .day-number {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            background: #1e293b;
+            border-radius: 32px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 250px;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: #3b82f6;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            font-size: 30px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px #3b82f6;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border-radius: 32px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 16px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            padding: 16px;
+            border-radius: 40px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            border-top: 1px solid #334155;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 16px;
+            right: 16px;
+            background: #22c55e;
+            padding: 16px;
+            border-radius: 20px;
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Экран загрузки -->
+<div class="splash-screen" id="splash">
+    <div class="loader"></div>
+    <div style="font-size: 20px; color: #3b82f6;">Аренда Авто PRO</div>
+    <div style="color: #64748b; margin-top: 12px;">облачная версия</div>
+</div>
+
+<!-- Экран авторизации Google -->
+<div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+        <div class="auth-icon">🚗</div>
+        <div class="auth-title">Аренда Авто</div>
+        <div class="auth-subtitle">Войдите в Google для работы с таблицей</div>
+        
+        <button class="google-btn" id="googleLoginBtn">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23FFC107' d='M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z'/%3E%3Cpath fill='%23FF3D00' d='M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z'/%3E%3Cpath fill='%234CAF50' d='M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z'/%3E%3Cpath fill='%231976D2' d='M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z'/%3E%3C/svg%3E" alt="Google">
+            Войти через Google
+        </button>
+        
+        <button class="create-sheet-btn" id="createSheetBtn">
+            ➕ Создать новую таблицу
+        </button>
+    </div>
+</div>
+
+<!-- Основной интерфейс (показывается после авторизации) -->
+<div class="main-interface" id="mainInterface">
+    <!-- Шапка -->
+    <div class="header">
+        <div class="logo">
+            <span>🚗</span> АРЕНДА
+        </div>
+        <div class="debt-badge" id="totalDebt">0 ₽</div>
+    </div>
+
+    <!-- Статус синхронизации -->
+    <div class="sync-status" id="syncStatus">
+        <span>☁️</span>
+        <span id="syncText">Синхронизация с Google Sheets...</span>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div style="color: #94a3b8;">Текущий долг</div>
+            <div class="stat-value" id="currentDebt">0 ₽</div>
+        </div>
+        <div class="stat-card">
+            <div style="color: #94a3b8;">За март</div>
+            <div class="stat-value" id="monthlyPaid">0 ₽</div>
+        </div>
+    </div>
+
+    <!-- Календарь -->
+    <div class="calendar-section">
+        <div class="month-nav">
+            <div class="month-title" id="currentMonth">Март 2026</div>
+            <div>
+                <button class="nav-btn" id="prevMonth">←</button>
+                <button class="nav-btn" id="nextMonth">→</button>
+            </div>
+        </div>
+        <div class="weekdays">
+            <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div>
+        </div>
+        <div class="days-grid" id="calendar"></div>
+    </div>
+
+    <!-- График -->
+    <div class="chart-container">
+        <canvas id="debtChart"></canvas>
+    </div>
+
+    <!-- Кнопка добавления -->
+    <button class="fab" id="addBtn">+</button>
+</div>
+
+<!-- Модальное окно платежа -->
+<div class="modal" id="paymentModal">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 20px;">➕ Добавить платёж</h2>
+        <input type="date" class="modal-input" id="paymentDate">
+        <input type="number" class="modal-input" id="paymentAmount" placeholder="Сумма" value="1700">
+        <div style="display: flex; gap: 12px;">
+            <button class="btn" id="cancelBtn" style="flex:1; background:#334155;">Отмена</button>
+            <button class="btn btn-primary" id="saveBtn" style="flex:1;">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Навигация -->
+<div class="nav-bar">
+    <div style="color:#3b82f6;">📊 Главная</div>
+    <div style="color:#94a3b8;">☁️ Облако</div>
+    <div style="color:#94a3b8;">📈 Отчёты</div>
+    <div style="color:#94a3b8;">⚙️</div>
+</div>
+
+<!-- Уведомления -->
+<div class="notification" id="notification"></div>
+
+<script>
+// =============================================
+// ОБЛАЧНОЕ ПРИЛОЖЕНИЕ - ТОЛЬКО GOOGLE SHEETS
+// =============================================
+
+// Настройки Google API (замените на свои)
+const CONFIG = {
+    apiKey: 'AIzaSyDummyKeyForExampleReplaceWithRealKey',
+    clientId: '59595161235-0p7j5v9l4v0q5q5q5q5q5q5q5q5q5q5q.apps.googleusercontent.com',
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
+};
+
+// Состояние приложения
+const App = {
+    dailyRate: 1700,
+    payments: [],
+    sundays: [],
+    spreadsheetId: null,
+    gapiInited: false,
+    gisInited: false,
+    tokenClient: null,
+    
+    async init() {
+        // Показываем загрузку
+        setTimeout(() => {
+            document.getElementById('splash').classList.add('hidden');
+        }, 1500);
+        
+        // Загружаем Google API
+        await this.loadGapi();
+    },
+    
+    loadGapi() {
+        return new Promise((resolve) => {
+            gapi.load('client', async () => {
+                await gapi.client.init({
+                    apiKey: CONFIG.apiKey,
+                    discoveryDocs: CONFIG.discoveryDocs,
+                });
+                this.gapiInited = true;
+                resolve();
+            });
+        });
+    },
+    
+    // Авторизация Google
+    async handleAuthClick() {
+        try {
+            this.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CONFIG.clientId,
+                scope: CONFIG.scope,
+                callback: async (response) => {
+                    if (response.error) {
+                        this.showNotification('❌ Ошибка авторизации');
+                        return;
+                    }
+                    
+                    // Сохраняем токен
+                    localStorage.setItem('googleToken', response.access_token);
+                    
+                    // Проверяем или создаём таблицу
+                    await this.initSpreadsheet();
+                    
+                    // Загружаем данные
+                    await this.loadFromSheet();
+                    
+                    // Показываем интерфейс
+                    document.getElementById('authScreen').classList.add('hidden');
+                    document.getElementById('mainInterface').classList.add('visible');
+                    
+                    this.showNotification('✅ Авторизация успешна');
+                },
+            });
+            
+            this.tokenClient.requestAccessToken();
+        } catch (error) {
+            this.showNotification('❌ Ошибка: ' + error.message);
+        }
+    },
+    
+    // Создание новой таблицы
+    async createNewSpreadsheet() {
+        try {
+            const response = await gapi.client.sheets.spreadsheets.create({
+                properties: {
+                    title: 'Аренда Авто ' + dayjs().format('YYYY-MM-DD')
+                },
+                sheets: [
+                    {
+                        properties: { title: 'Платежи' },
+                        data: [{
+                            rowData: [{
+                                values: [
+                                    { userEnteredValue: { stringValue: 'Дата' } },
+                                    { userEnteredValue: { stringValue: 'Сумма' } },
+                                    { userEnteredValue: { stringValue: 'Комментарий' } }
+                                ]
+                            }]
+                        }]
+                    },
+                    {
+                        properties: { title: 'Выходные' },
+                        data: [{
+                            rowData: [{
+                                values: [
+                                    { userEnteredValue: { stringValue: 'Дата' } }
+                                ]
+                            }]
+                        }]
+                    }
+                ]
+            });
+            
+            this.spreadsheetId = response.result.spreadsheetId;
+            localStorage.setItem('spreadsheetId', this.spreadsheetId);
+            
+            this.showNotification(`✅ Таблица создана: ${this.spreadsheetId}`);
+            
+            // Показываем интерфейс
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainInterface').classList.add('visible');
+            
+            return this.spreadsheetId;
+        } catch (error) {
+            this.showNotification('❌ Ошибка создания таблицы');
+            return null;
+        }
+    },
+    
+    // Загрузка данных из Google Sheets
+    async loadFromSheet() {
+        try {
+            this.spreadsheetId = localStorage.getItem('spreadsheetId');
+            if (!this.spreadsheetId) return;
+            
+            // Загружаем платежи
+            const paymentsResponse = await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Платежи!A:B'
+            });
+            
+            const rows = paymentsResponse.result.values || [];
+            this.payments = [];
+            
+            for (let i = 1; i < rows.length; i++) { // пропускаем заголовок
+                if (rows[i][0] && rows[i][1]) {
+                    this.payments.push({
+                        date: rows[i][0],
+                        amount: parseFloat(rows[i][1])
+                    });
+                }
+            }
+            
+            // Загружаем выходные
+            const sundaysResponse = await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Выходные!A:A'
+            });
+            
+            const sundayRows = sundaysResponse.result.values || [];
+            this.sundays = [];
+            
+            for (let i = 1; i < sundayRows.length; i++) {
+                if (sundayRows[i][0]) {
+                    this.sundays.push(sundayRows[i][0]);
+                }
+            }
+            
+            this.renderAll();
+            this.showNotification('📥 Данные загружены из облака');
+            
+        } catch (error) {
+            this.showNotification('❌ Ошибка загрузки: ' + error.message);
+        }
+    },
+    
+    // Сохранение платежа в Google Sheets
+    async savePaymentToSheet(date, amount) {
+        try {
+            // Добавляем строку в таблицу
+            await gapi.client.sheets.spreadsheets.values.append({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Платежи!A:B',
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [[date, amount]]
+                }
+            });
+            
+            // Перезагружаем данные
+            await this.loadFromSheet();
+            
+        } catch (error) {
+            this.showNotification('❌ Ошибка сохранения: ' + error.message);
+        }
+    },
+    
+    // Сохранение выходного
+    async toggleSundayInSheet(date) {
+        try {
+            if (this.sundays.includes(date)) {
+                // Удаляем из выходных
+                // В реальном API нужно найти и удалить строку
+                // Для демо просто перезаписываем
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Выходные!A:A'
+                });
+                
+                const newSundays = this.sundays.filter(d => d !== date);
+                if (newSundays.length > 0) {
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: this.spreadsheetId,
+                        range: 'Выходные!A:A',
+                        valueInputOption: 'USER_ENTERED',
+                        resource: {
+                            values: [['Дата'], ...newSundays.map(d => [d])]
+                        }
+                    });
+                }
+            } else {
+                // Добавляем
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Выходные!A:A',
+                    valueInputOption: 'USER_ENTERED',
+                    resource: {
+                        values: [[date]]
+                    }
+                });
+            }
+            
+            // Перезагружаем
+            await this.loadFromSheet();
+            
+        } catch (error) {
+            this.showNotification('❌ Ошибка: ' + error.message);
+        }
+    },
+    
+    // Проверка выходного
+    isSunday(dateStr) {
+        if (dayjs(dateStr).day() === 0) return true;
+        return this.sundays.includes(dateStr);
+    },
+    
+    // Начисление за день
+    getDailyCharge(dateStr) {
+        return this.isSunday(dateStr) ? 0 : this.dailyRate;
+    },
+    
+    // Общий долг на дату
+    getTotalCharge(dateStr) {
+        let total = 0;
+        let current = dayjs('2025-10-15');
+        const end = dayjs(dateStr);
+        
+        while (current.isBefore(end) || current.isSame(end)) {
+            total += this.getDailyCharge(current.format('YYYY-MM-DD'));
+            current = current.add(1, 'day');
+        }
+        return total;
+    },
+    
+    // Все оплаты до даты
+    getTotalPayments(dateStr) {
+        return this.payments
+            .filter(p => p.date <= dateStr)
+            .reduce((sum, p) => sum + p.amount, 0);
+    },
+    
+    // Долг на дату
+    getDebt(dateStr) {
+        return this.getTotalCharge(dateStr) - this.getTotalPayments(dateStr);
+    },
+    
+    // Цветовой статус дня
+    getDayStatus(dateStr) {
+        if (this.isSunday(dateStr)) return 'sunday';
+        
+        const payments = this.payments
+            .filter(p => p.date === dateStr)
+            .reduce((sum, p) => sum + p.amount, 0);
+        
+        const charge = this.getDailyCharge(dateStr);
+        
+        if (payments === 0) return 'gray';
+        
+        const percent = (payments / charge) * 100;
+        
+        if (percent < 50) return 'red';
+        if (percent < 90) return 'yellow';
+        return 'green';
+    },
+    
+    // Отрисовка календаря
+    renderCalendar() {
+        const year = 2026, month = 2; // Март
+        const firstDay = dayjs(new Date(year, month, 1));
+        const daysInMonth = firstDay.daysInMonth();
+        const startWeekday = firstDay.day() === 0 ? 6 : firstDay.day() - 1;
+        
+        let html = '';
+        
+        for (let i = 0; i < startWeekday; i++) {
+            html += `<div class="day-cell status-gray" style="opacity:0.3;"></div>`;
+        }
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const status = this.getDayStatus(dateStr);
+            
+            const payments = this.payments.filter(p => p.date === dateStr);
+            const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+            
+            html += `<div class="day-cell status-${status}" data-date="${dateStr}">
+                <span class="day-number">${d}</span>
+                ${totalPaid > 0 ? `<div style="font-size:10px;">${totalPaid}₽</div>` : ''}
+            </div>`;
+        }
+        
+        document.getElementById('calendar').innerHTML = html;
+        document.getElementById('currentMonth').innerText = firstDay.format('MMMM YYYY');
+    },
+    
+    // Отрисовка всего
+    renderAll() {
+        this.renderCalendar();
+        
+        const debt = this.getDebt(dayjs().format('YYYY-MM-DD'));
+        document.getElementById('currentDebt').innerText = debt.toLocaleString() + ' ₽';
+        document.getElementById('totalDebt').innerText = debt.toLocaleString() + ' ₽';
+        
+        const monthPayments = this.payments
+            .filter(p => p.date.startsWith('2026-03'))
+            .reduce((s, p) => s + p.amount, 0);
+        document.getElementById('monthlyPaid').innerText = monthPayments.toLocaleString() + ' ₽';
+        
+        // График
+        this.renderChart();
+    },
+    
+    renderChart() {
+        const ctx = document.getElementById('debtChart').getContext('2d');
+        
+        if (window.myChart) {
+            window.myChart.destroy();
+        }
+        
+        const data = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = dayjs().subtract(i, 'month').startOf('month');
+            data.push(this.getDebt(date.format('YYYY-MM-DD')));
+        }
+        
+        window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар'],
+                datasets: [{
+                    data: data,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239,68,68,0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    },
+    
+    showNotification(msg) {
+        const n = document.getElementById('notification');
+        n.innerText = msg;
+        n.style.display = 'block';
+        setTimeout(() => n.style.display = 'none', 3000);
+    }
+};
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+    
+    // Кнопки авторизации
+    document.getElementById('googleLoginBtn').addEventListener('click', () => {
+        App.handleAuthClick();
+    });
+    
+    document.getElementById('createSheetBtn').addEventListener('click', async () => {
+        await App.createNewSpreadsheet();
+    });
+    
+    // Навигация по месяцам
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        // В демо просто перерисовываем тот же месяц
+        App.renderCalendar();
+    });
+    
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        App.renderCalendar();
+    });
+    
+    // Добавление платежа
+    document.getElementById('addBtn').addEventListener('click', () => {
+        document.getElementById('paymentDate').value = dayjs().format('YYYY-MM-DD');
+        document.getElementById('paymentModal').style.display = 'flex';
+    });
+    
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+        document.getElementById('paymentModal').style.display = 'none';
+    });
+    
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        const date = document.getElementById('paymentDate').value;
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        
+        if (date && amount > 0) {
+            await App.savePaymentToSheet(date, amount);
+            document.getElementById('paymentModal').style.display = 'none';
+        }
+    });
+    
+    // Клик по дню (для выходных)
+    document.getElementById('calendar').addEventListener('click', async (e) => {
+        const cell = e.target.closest('.day-cell[data-date]');
+        if (cell) {
+            const date = cell.dataset.date;
+            if (confirm(`Сделать ${date} выходным?`)) {
+                await App.toggleSundayInSheet(date);
+            }
+        }
+    });
+    
+    // Закрытие модалок
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
+        }
+    });
+});
+</script>
+</body>
+</html>
